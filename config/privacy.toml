@@ -1,0 +1,42 @@
+district = "gateway"
+district_number = 1
+event_types = ["city.gateway.block.added.v1", "city.gateway.demo.event.v1"]
+
+[field.actor_id]
+category = "pseudonym"
+reason = "SOC сопоставляет действия одной административной учётной записи при расследовании. Исходный идентификатор нужен только Шлюзу."
+
+[field.source]
+category = "pseudonym"
+reason = "SOC видит повторные блокировки одного источника. Исходный адрес нужен только для локального разбора."
+
+[field.status]
+category = "open"
+reason = "Признак успешного прохождения учебной проверки границы."
+allowed = ["ok"]
+
+[field.block_id]
+category = "open"
+reason = "Случайный идентификатор правила связывает уведомление с конкретной блокировкой."
+format = "uuid"
+
+[field.reason_code]
+category = "open"
+reason = "Код из фиксированного списка позволяет SOC различать причины срабатывания."
+allowed = ["abuse", "scan", "policy"]
+
+[field.reason]
+category = "forbidden"
+reason = "Свободный текст может содержать имена, адреса и другие идентификаторы."
+
+[field.authorization]
+category = "forbidden"
+reason = "Заголовок авторизации может дать доступ от имени пользователя."
+
+[field.request_body]
+category = "forbidden"
+reason = "Тело запроса может содержать данные жителя и секреты целевого района."
+
+[field.debug_context]
+category = "forbidden"
+reason = "Диагностический контекст может включать заголовки и параметры запроса."

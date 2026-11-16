@@ -1,0 +1,11 @@
+**
+!services/
+!services/api/
+!services/api/Dockerfile
+!services/api/app.py
+!bus/
+!bus/*.py
+!privacy/
+!privacy/*.py
+!config/
+!config/privacy.toml

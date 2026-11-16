@@ -4,7 +4,9 @@ name: d1-gateway
 
 services:
   api:
-    build: ./services/api
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
     environment:
       DISTRICT: gateway
       SERVICE: api

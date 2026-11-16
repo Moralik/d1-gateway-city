@@ -1,0 +1,36 @@
+services:
+  api:
+    environment:
+      BUS_URL: http://broker:14167
+      BUS_SECRET: ${BUS_SECRET:?задайте ключ Gateway → SOC в .env}
+      BUS_CONSUME_SECRET: ${BUS_CONSUME_SECRET:?задайте ключ SOC → Gateway в .env}
+      PRIVACY_SALT: ${PRIVACY_SALT:?задайте соль района в .env}
+      GATEWAY_ADMIN_TOKEN: ${GATEWAY_ADMIN_TOKEN:?задайте токен учебного администратора в .env}
+      GATEWAY_STATE_DIR: /var/lib/gateway/state
+      PRIVACY_VAULT: /var/lib/gateway/private/vault.sqlite3
+    volumes:
+      - gateway-state:/var/lib/gateway/state
+      - gateway-private:/var/lib/gateway/private
+
+  broker:
+    build: ./services/broker
+    environment:
+      BROKER_HOST: 0.0.0.0
+      BROKER_PORT: "14167"
+      BROKER_DB: /data/broker.sqlite3
+    # Привязка к loopback нужна для учебного клиента SOC на том же компьютере.
+    ports:
+      - "127.0.0.1:14167:14167"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - broker-state:/data
+    networks: [internal]
+    restart: unless-stopped
+
+volumes:
+  gateway-state: {}
+  gateway-private: {}
+  broker-state: {}

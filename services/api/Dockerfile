@@ -1,10 +1,16 @@
 FROM python:3.12-slim
 
 # Непривилегированный пользователь (урок ЛР0): процесс в контейнере — не root
-RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin appuser
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin appuser \
+    && install -d -m 0700 -o appuser -g appuser /var/lib/gateway/state /var/lib/gateway/private
 
 WORKDIR /app
-COPY app.py .
+COPY services/api/app.py .
+COPY bus ./bus
+COPY privacy ./privacy
+COPY config/privacy.toml ./config/privacy.toml
+
+ENV PYTHONDONTWRITEBYTECODE=1
 
 USER appuser
 EXPOSE 8080

@@ -1,35 +1,21 @@
-# События района 1 — Шлюз
+# События района 1 «Шлюз»
 
-Формат конверта — CloudEvents 1.0 (соглашение Р5 «Архитектуры города»).
-Тип события: `city.gateway.объект.действие.vN`. Время — UTC.
-В `data` и `subject` — только идентификаторы, не ФИО и не секреты.
+Конверт соответствует CloudEvents 1.0 и Р5. `id` — UUID сообщения, `time` — UTC с миллисекундами и `Z`, `subject` — UUID объекта, `datacontenttype` — `application/json`. В `citysig` передаётся HMAC-SHA256 в нижнем регистре hex. Подписывается строка `type + "\n" + id + "\n" + time + "\n" + sha256(canonical_json(data))`; канонический JSON — UTF‑8, отсортированные ключи, без пробелов между элементами и без экранирования Unicode.
 
 ## Публикуем
 
-| Тип (`type`) | Когда | Кто получатель | Поля `data` (пример) |
+| `type` | Тема | Источник → получатель | Данные |
 |---|---|---|---|
-| `city.gateway.<объект>.<действие>.v1` | | | |
+| `city.gateway.block.added.v1` | `city.events.gateway.block.added` | `/d1-gateway/api` → SOC | `block_id` (UUID), `source` и `actor_id` (`psn:…`), `reason_code` (`abuse`, `scan` или `policy`) |
 
-Пример:
-
-```json
-{
-  "specversion": "1.0",
-  "id": "<UUID>",
-  "source": "/d1-gateway/api",
-  "type": "city.gateway.<объект>.<действие>.v1",
-  "time": "2026-10-13T05:07:31.415Z",
-  "subject": "<идентификатор объекта>",
-  "datacontenttype": "application/json",
-  "data": {}
-}
-```
+Правило создаётся через `POST /api/v1/admin/block`. Поле `subject` повторяет `data.block_id`. Поля `source` и `actor_id` проходят псевдонимизацию до подписи. Каталог разрешённых полей и порядок обработки описаны в [ЛР5](../docs/privacy.md).
 
 ## Потребляем
 
-| Тип (`type`) | От кого | Что делаем при получении | Что делаем с неверным / повторным событием |
+| `type` | Тема | Источник → получатель | Данные |
 |---|---|---|---|
-| | | | пишем `event.rejected` в журнал |
+| `city.soc.incident.opened.v1` | `city.events.soc.incident.opened` | `/d8-soc/api` → Шлюз | `incident_id` (UUID), `target_district` (`gateway`), необязательное `severity` (`low`, `medium`, `high`, `critical`; по умолчанию `medium`) |
 
-## Открытые вопросы к архитектурному совету
--
+В учебном обмене `subject` повторяет подписанный `data.incident_id`. Шлюз также проверяет фиксированные `source`, `type` и тему. Уточнение схемы с городским SOC входит в подключение к общей шине.
+
+Шлюз записывает инцидент один раз по `incident_id`. При повторе сообщения с тем же `id`, плохой подписи, устаревшем времени или нарушении контракта потребитель пишет `event.rejected` с фиксированным кодом причины. Подробности процесса и прогоны находятся в [ЛР4](../docs/bus.md).
