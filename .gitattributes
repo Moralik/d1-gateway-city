@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.sh text eol=lf
+Caddyfile text eol=lf
+Corefile text eol=lf
+db.* text eol=lf
+*.yaml text eol=lf

@@ -1,0 +1,25 @@
+services:
+  tls:
+    image: caddy:2.8-alpine
+    user: "root:root"
+    environment:
+      XDG_DATA_HOME: /tmp/data
+      XDG_CONFIG_HOME: /tmp/config
+      DISTRICT_HOST: ${DISTRICT_HOST:?задайте DISTRICT_HOST в .env}
+      UPSTREAM: api:8080
+    ports:
+      - "80:80"           # Убрали 127.0.0.1 — теперь слушает на всех интерфейсах
+      - "8443:8443"       # Убрали 127.0.0.1 — теперь слушает на всех интерфейсах
+    volumes:
+      - ./tls/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./tls/district.crt:/tls/district.crt:ro
+      - ./tls/private/district.key:/tls/private/district.key:ro
+      - ./tls/city-root.crt:/tls/city-root.crt:ro
+    tmpfs:
+      - /tmp
+    depends_on: [api]
+    networks: [internal]
+    restart: unless-stopped
+
+  api:
+    ports: !reset []

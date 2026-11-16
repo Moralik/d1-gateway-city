@@ -1,0 +1,10 @@
+.env
+tls/private/
+**/private/
+*.key
+*.pem
+*.p12
+ca-data/
+!ca-data/public/
+out/
+stubs/**/private/

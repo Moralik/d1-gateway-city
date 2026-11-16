@@ -1,0 +1,22 @@
+$ORIGIN city.lab.
+$TTL 3600
+
+@   IN SOA  ns1.city.lab. admin.city.lab. (
+            2026110801
+            3600
+            1800
+            604800
+            86400
+)
+
+@           IN NS   ns1.city.lab.
+
+ns1         IN A    10.0.0.1
+gateway     IN A    10.0.0.1
+passport    IN A    10.0.0.2
+cityhall    IN A    10.0.0.3
+bank        IN A    10.0.0.10
+hospital    IN A    10.0.0.20
+grid        IN A    10.0.0.30
+transport   IN A    10.0.0.40
+soc         IN A    10.0.0.50

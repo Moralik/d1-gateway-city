@@ -1,0 +1,167 @@
+# Описание HTTP API района (соглашение Р6).
+openapi: 3.1.0
+info:
+  title: Район 1 — Шлюз (API)
+  version: 0.1.0
+  description: |
+    Шлюз — единая точка входа во все районы Цифрового города.
+    Принимает внешние запросы, маршрутизирует их во внутренние районы,
+    пишет логи и отправляет события безопасности.
+    Аутентификация появится на неделе 4: люди — токен OIDC, сервисы — mTLS.
+    На неделе 2 эндпоинт /admin/block доступен только с localhost (127.0.0.1).
+servers:
+  - url: https://api.gateway.city.lab
+    description: Адрес в городе (после недели 3)
+  - url: http://127.0.0.1:8080
+    description: Локальный запуск (заглушка, только localhost для админ-операций)
+
+paths:
+  /health:
+    get:
+      summary: Проверка работоспособности (для чекера White Team)
+      operationId: health
+      responses:
+        "200":
+          description: Сервис работает
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: {type: string, const: ok}
+
+  /api/v1/route:
+    post:
+      summary: Маршрутизация запроса во внутренний район
+      description: |
+        Принимает запрос от жителя, проверяет формат и перенаправляет
+        его в целевой район города. Все вызовы логируются.
+        Параметр target строго валидируется по белому списку (enum) —
+        мера защиты от SSRF/Path Traversal (угроза T_ROUTE_01).
+        Максимальный размер тела запроса: 1 МБ (ограничение на уровне веб-сервера).
+      operationId: routeRequest
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target, payload]
+              properties:
+                target:
+                  type: string
+                  description: Код целевого района (строго из белого списка, Р1)
+                  enum:
+                    - passport
+                    - cityhall
+                    - bank
+                    - hospital
+                    - grid
+                    - transport
+                    - soc
+                  example: "bank"
+                payload:
+                  type: object
+                  description: Тело запроса для целевого района (макс. 20 полей, каждое до 1 КБ)
+                  maxProperties: 20
+                  additionalProperties:
+                    type: string
+                    maxLength: 1024
+                  example: { "action": "get_balance", "account": "12345" }
+      responses:
+        "200":
+          description: Запрос успешно маршрутизирован
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, example: "routed"}
+                  district: {type: string, example: "bank"}
+        "400":
+          description: Неверный формат запроса или target не из белого списка
+          $ref: "#/components/responses/Problem"
+        "413":
+          description: Тело запроса слишком большое (превышает 1 МБ)
+          $ref: "#/components/responses/Problem"
+        "503":
+          description: Целевой район недоступен
+          $ref: "#/components/responses/Problem"
+
+  /api/v1/admin/block:
+    post:
+      summary: Добавить правило блокировки источника (только для Администратора)
+      description: |
+        Только для Администратора Шлюза. Добавляет правило, по которому 
+        запросы от определённого источника будут отклоняться.
+        Публикует событие city.gateway.block.added.v1 в Транспорт.
+        На неделе 2 доступно только с localhost (127.0.0.1).
+        С недели 4 — только с валидным OIDC-токеном администратора.
+        Поле source валидируется по regex для защиты от SQL-инъекций и Log Injection.
+      operationId: addBlockRule
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source, reason]
+              properties:
+                source:
+                  type: string
+                  description: Источник для блокировки (IP, токен, код района). Только безопасные символы.
+                  maxLength: 64
+                  pattern: '^[a-zA-Z0-9._:/-]+$'
+                  example: "192.0.2.42"
+                reason:
+                  type: string
+                  description: Причина блокировки
+                  maxLength: 256
+                  pattern: '^[a-zA-Z0-9 ._:/-]+$'
+                  example: "suspected DoS attack"
+      responses:
+        "201":
+          description: Правило добавлено, событие city.gateway.block.added.v1 опубликовано
+        "400":
+          description: Неверный формат source или reason (не прошли валидацию по regex)
+          $ref: "#/components/responses/Problem"
+        "401":
+          description: Не администратор (отсутствует или невалидный токен, с недели 4)
+          $ref: "#/components/responses/Problem"
+        "403":
+          description: Доступ запрещён (запрос не с localhost на неделе 2)
+          $ref: "#/components/responses/Problem"
+        "409":
+          description: Правило для данного источника уже существует
+          $ref: "#/components/responses/Problem"
+
+components:
+  parameters:
+    RequestId:
+      name: X-Request-ID
+      in: header
+      required: false
+      description: |
+        Сквозной идентификатор запроса; если нет — сервис создаёт новый.
+        Валидируется по regex для защиты от Log Injection (только буквы, цифры, дефис).
+      schema:
+        type: string
+        maxLength: 64
+        pattern: '^[a-zA-Z0-9\-]+$'
+  responses:
+    Problem:
+      description: Ошибка в формате RFC 9457 (Problem Details)
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            properties:
+              type: {type: string, example: "https://city.lab/errors/routing-failed"}
+              title: {type: string, example: "Routing Failed"}
+              status: {type: integer, example: 400}
+              detail: {type: string, example: "Target district is not in the allowed whitelist"}
